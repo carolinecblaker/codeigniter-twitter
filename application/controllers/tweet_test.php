@@ -14,91 +14,55 @@
 			$this->tweet->enable_debug(TRUE);
 			
 			// If you already have a token saved for your user
-			// (In a db for example) - See line #37
+			// This library will honor that token
 			// 
 			// You can set these tokens before calling logged_in to try using the existing tokens.
 			// $tokens = array('oauth_token' => 'foo', 'oauth_token_secret' => 'bar');
 			// $this->tweet->set_tokens($tokens);
 			//if (strpos($_SERVER['REQUEST_URI'],'oauth_')) {
 			
+			if ($this->tweet->get_request_secret() == NULL){
 			
-			if ($this->tweet->get_access_secret() == NULL){
-			//echo "null!";
-			if ( !$this->tweet->logged_in() )
-			{
-				// This is where the url will go to after auth.
-				// ( Callback url )
-				//echo '<h2> Processing as if not logged_in</h2>';
-				$this->tweet->set_callback(site_url('tweet_test/auth'));
-				
-				// Send the user off for login!
 				$this->tweet->login();
-			}
-  			$getVars = split('\?',$_SERVER['REQUEST_URI']);
-  			$varArray = split('&',$getVars[1]);
-  			$tokenstring = split('=',$varArray[0]);
-  			$verifierstring = split('=',$varArray[1]);
-  			$_GET['oauth_token'] = $tokenstring[1];
-  			$_GET['oauth_verifier'] = $verifierstring[1];
-  			//$oauth_token_secret = $verifierstring[1];
-  			$tokens = array('oauth_token' => $_GET['oauth_token'], 'oauth_token_secret' => $_GET['oauth_verifier'] );
-  			//echo 'Controller Tokens:';
-  			//print_r($tokens);
-			  //$this->tweet->set_tokens($tokens);
+		
+			} 
 
-  			//
-  			//log_message('info','Parsed the URL and $_GET should equal something now.');
+			if ($this->tweet->get_access_secret() === NULL){
+  				
+  				$getVars = split('\?',$_SERVER['REQUEST_URI']);
+				
+  				if (! array_key_exists(1, $getVars) && $this->tweet->get_request_secret() !== NULL){
 
-		//	}
-			//print_r($_GET);
-
-
-			//exit;
+  					$this->tweet->logout();
+  					$this->tweet->login();
+  			
+  					}
+  				
+  				$varArray = split('&',$getVars[1]);
+  				
+  				$tokenstring = split('=',$varArray[0]);
+  				
+  				$verifierstring = split('=',$varArray[1]);
+  				
+  				$_GET['oauth_token'] = $tokenstring[1];
+  				
+  				$_GET['oauth_verifier'] = $verifierstring[1];
+  				
+  				$tokens = array('access_token' => $_GET['oauth_token'], 'access_verifier' => $_GET['oauth_verifier'] );
+  				
+  				$this->tweet->set_tokens($tokens);
+				
+				$this->tweet->login();
 			
-			if ( !$this->tweet->logged_in() )
-			{
-				// This is where the url will go to after auth.
-				// ( Callback url )
-				///echo '<h2> Processing as if not logged_in</h2>';
-				$this->tweet->set_callback(site_url('tweet_test/auth'));
-				
-				// Send the user off for login!
-				$this->tweet->login();
-			}
-			else
-			{
-			//echo '<h2> You are logged_in</h2>';
-				// You can get the tokens for the active logged in user:
-				$tokens = $this->tweet->get_tokens();
-	
-				// 
-				// These can be saved in a db alongside a user record
-				// if you already have your own auth system.
-			}
 			}
 		}
 		
-		function index()
+		function index() //This should only display if the controller is loaded AND the user is logged-in from previous app interaction.
 		{
-			echo 'hi there';
-			$this->session->unset_userdata('user_data');
-			echo "data unset";
-		}
-		
-		function auth()
-		{
-			//$tokens = $this->tweet->get_tokens();
-			//$this->tweet->set_tokens($tokens);
-			
-			
-			// $user = $this->tweet->call('get', 'account/verify_credentiaaaaaaaaals');
-			// 
-			// Will throw an error with a stacktrace.
-			
 			$user = $this->tweet->call('get', 'account/verify_credentials');
-			var_dump($user);
 			
 			$friendship = $this->tweet->call('get', 'friendships/show', array('source_screen_name' => $user->screen_name, 'target_screen_name' => 'artnweb'));
+			
 			var_dump($friendship);
 			
 			if ( $friendship->relationship->target->following === FALSE )
@@ -106,16 +70,39 @@
 				$this->tweet->call('post', 'friendships/create', array('screen_name' => $user->screen_name, 'follow' => TRUE));
 			}
 			
-			$this->tweet->set_status(rawurlencode('Completely revamping #CodeIgniter Twitter library by @elliothaughin - http://bit.ly/grHmua - This is an auto-tweet from http://twitterscap.es'));
-			
-			$options = array(
-						'count' => 10,
-						'page' 	=> 2,
-						'include_entities' => 1
-			);
-			
 			$timeline = $this->tweet->call('get', 'statuses/home_timeline');
 			
 			var_dump($timeline);
+		}
+		
+		function auth() //The function run after Authorization occurs - User is already logged in via the constructor.
+		{	
+			$user = $this->tweet->call('get', 'account/verify_credentials');
+			
+			var_dump($user);
+.
+			//
+			// As much as I'd love it, this function does not post to Twitter citing a 401 Could not Authenticate error.
+			//
+			// This error is not the same as 1. INcorrect signature 2. Incorrect/Expired Token 3. Any other specific 401 Twitter would send back. Your help would be appreciated!
+			//
+			$this->tweet->call('post', 'statuses/update', array('status' => 'Testing http://t.co/Ai9y9Qo twitter integration.'));		
+			
+			$this->tweet->set_status(rawurlencode('Completely revamping #CodeIgniter Twitter library by @elliothaughin - This is an auto-tweet from twitterscap.es'));
+			
+			//$options = array(
+						//'count' => 10,
+						//'page' 	=> 2,
+						//'include_entities' => 1
+		//	);
+			
+			
+		}
+		function logout()
+		{
+			//echo 'hi there';
+
+			$this->tweet->logout();
+			echo "<h3>You are now logged-out</h3><br/><a href='http://twitterscap.es/tweet_test'>Log Back In</a>";
 		}
 	}

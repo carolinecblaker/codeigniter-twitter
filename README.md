@@ -5,6 +5,11 @@ A complete library giving you twitter oauth authentication and api access.
 
 [Elliot Haughin - CodeIgniter Twitter Library - Documentation](http://www.haughin.com/code/twitter/)
 
+EDIT: August 12, 2014 by .carolinecblaker.
+
+This library has been updated and sent live at http://twitterscap.es
+
+It's now compatable with the latest Twitter API and still works on CodeIgniter 2.0.2
 
 EDIT: May 17, 2011 by .carolinecblaker. http://carolineblaker.com
 

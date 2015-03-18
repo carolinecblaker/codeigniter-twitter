@@ -1,7 +1,5 @@
 <?php
 	
-	<?php
-	
 	class tweet {
 		
 		private $_oauth = NULL;
@@ -87,43 +85,58 @@
 				'type' 		=> CURLINFO_CONTENT_TYPE
 			);
 		}
-		
+
 		private function _initConnection($url)
 		{
 			$this->_ch = curl_init($url);
 			curl_setopt($this->_ch, CURLOPT_RETURNTRANSFER, TRUE);
 		}
-		
+
 		public function get($url, $params)
-		{
+		{/* OLD GET REQUEST*/
+	
 			if ( count($params['request']) > 0 )
+	
+	
 			{
 				$url .= '?';
 			
 				foreach( $params['request'] as $k => $v )
 				{
+				
 					$url .= "{$k}={$v}&";
 				}
 				
 				$url = substr($url, 0, -1);
-			}
-						
-			$this->_initConnection($url);
-			$response = $this->_addCurl($url, $params);
 
+			}
+
+	
+			$this->_initConnection($url);
+			
+			
+			if ( count($params['request']) > 0 ){
+			//echo"GOT"; exit;
+			//	curl_setopt($this->_ch, CURLOPT_HTTPGET, 1);
+			//curl_setopt($this->_ch, CURLOPT_POSTFIELDS, $post);
+				
+				}
+			$response = $this->_addCurl($url, $params);
+			
+			
 		    return $response;
 		}
 		
 		public function post($url, $params)
 		{
 			// Todo
-			$post = '';
-			
-			foreach ( $params['request'] as $k => $v )
-			{
+			$post = ''; 
+			if (isset($params['request'])){
+				foreach ( $params['request'] as $k => $v )
+				{
 				$post .= "{$k}={$v}&";
+				}
 			}
-			
 			$post = substr($post, 0, -1);
 			
 			$this->_initConnection($url, $params);
@@ -132,14 +145,14 @@
 			
 			$response = $this->_addCurl($url, $params);
 
-		    return $response;
+			 return $response;
 		}
 		
 		private function _addOauthHeaders(&$ch, $url, $oauthHeaders)
 		{
 			$_h = array('Expect:');
 			$urlParts = parse_url($url);
-		#	$oauth = 'Authorization: OAuth realm="' . $urlParts['path'] . '",';  DEPRICATED
+	
 			$oauth = 'Authorization: OAuth ';
 			foreach ( $oauthHeaders as $name => $value )
 			{
@@ -150,14 +163,14 @@
 			$log_headers = var_export($oauth, TRUE); 
 			$log_headers = str_replace(array("\r","\n"), '', $log_headers); 
 					log_message('debug', 'Oauth URL: '. $url);
-					 log_message('debug', 'Oauth Headers: '. $log_headers);
-			
-			
+					log_message('debug', 'Oauth Headers: '. $log_headers);
+
+	
 			curl_setopt($ch, CURLOPT_HTTPHEADER, $_h);
 		}
 		
 		private function _addCurl($url, $params = array())
-		{
+		{	
 			if ( !empty($params['oauth']) )
 			{
 				$this->_addOauthHeaders($this->_ch, $url, $params['oauth']);
@@ -174,7 +187,7 @@
 			{
 				do {
 					$mch = curl_multi_exec($this->_mch, $active);
-				} while ( $mch === CURLM_CALL_MULTI_PERFORM );
+					} while ( $mch === CURLM_CALL_MULTI_PERFORM );
 				
 				return $this->_getResponse($key);
 			}
@@ -206,17 +219,18 @@
 					if ( isset($this->_responses[$key]) )
 					{
 						$response = new tweetResponseOauth( (object) $this->_responses[$key] );
-						
+							
 						if ( $response->__resp->code !== 200 )
 						
 						{
-						//print_r($response);
-							 log_message('error', 'Feed not pulled: '. $response->__resp->data);	
-							throw new tweetException($response->__resp->code.' | Request Failed: '.$response->__resp->data.' - '.$response->__resp->data->errors);
+				
+							 log_message('error', 'Feed not pulled: '. $response->__resp->data->errors[0]->message. ' Code:'.$response->__resp->code);	
+							//throw new tweetException($response->__resp->code.' | Request Failed: '.$response->__resp->data.' - '.$response->__resp->data->errors);
 						
 							
 						}
-						
+						//echo "<h1>Response</h1>";
+						//print_r($response);
 						return $response;
 					}
 				}
@@ -240,7 +254,7 @@
 					
 					curl_multi_remove_handle($this->_mch, $done['handle']);
 				}
-		  }
+			}
 		}
 	}
 	
@@ -295,7 +309,6 @@
 		private $_signatureMethod 	= 'HMAC-SHA1';
 		private $_version 			= '1.0'; /*This is the oAuth version*/
 		private $_apiUrl 			= 'https://api.twitter.com/1.1'; /*This is the API version*/
-		private $_searchUrl			= 'http://search.twitter.com/';
 		private $_callback = NULL;
 		private $_errors = array();
 		private $_enable_debug = FALSE;
@@ -343,19 +356,18 @@
 		public function call($method, $path, $args = NULL)
 		{
 			$response = $this->_httpRequest(strtoupper($method), $this->_apiUrl.'/'.$path.'.json', $args);
-			
-			// var_dump($response);
-			// die();
-			
-			return ( $response === NULL ) ? FALSE : $response->_result;
+
+			if (isset($response->__resp->code) && $response->__resp->code ===200 ){
+
+				$returnvar= $response->_result;
+			}
+			else {
+				$returnvar =$response;
+			}	
+		
+			return $returnvar;
 		}
 		
-		public function search($args = NULL)
-		{	//echo $args;
-			$response = $this->_httpRequest('GET', $this->_searchUrl.'search.json', $args);
-			
-			return ( $response === NULL ) ? FALSE : $response->_result;
-		}
 		
 		public function loggedIn()
 		{
@@ -369,13 +381,14 @@
 				$loggedIn = TRUE;
 			}
 			
+		
 			$this->_obj->unit->run($loggedIn, TRUE, 'Logged In');
 			return $loggedIn;
 		}
 		
 		private function _checkLogin()
 		{
-			/* $getVars = split('\?',$_SERVER['REQUEST_URI']); */
+		
 			$getVars = preg_split('[\?]',$_SERVER['REQUEST_URI']);
 			
 			if ( isset($getVars[1]) ) 
@@ -385,12 +398,9 @@
   			$tokenstring = preg_split('[=]',$varArray[0]);
   			$verifier = preg_split('[=]',$varArray[1]);
   			
-  			//$verifierstring = split('=',$varArray[1]);
-  			
 			if ( isset($tokenstring) && isset ($verifier) )
 			{
-				//var_dump($tokenstring);
-				
+
 				$this->_setAccessKey($tokenstring[1]);
 				
 				$this->_setAccessVerifier($verifier[1]);
@@ -418,10 +428,11 @@
 		{
 			if ( ($this->_getAccessKey() === NULL && $this->_getAccessSecret() === NULL) )
 			{  
-				header('Location: '.$this->_getAuthorizationUrl());
+				
+				header('Location: '.$this->_getAuthorizationUrl()); 
 				return;
 			}
-			//echo 'here';
+			
 			return $this->_checkLogin();
 		}
 		
@@ -532,7 +543,8 @@
 		
 		private function _getAuthorizationUrl()
 		{
-			$token = $this->_getRequestToken(); //echo $token ;
+			$token = $this->_getRequestToken();
+			
 			return $this->_authorizationUrl.'?oauth_token=' . $token->oauth_token;
 		}
 		
@@ -552,15 +564,17 @@
 			if ( empty($params['oauth_signature']) ) $params = $this->_prepareParameters($method, $url, $params);
 			if ($url == $this->_accessTokenUrl) {
 			
-			/* 	echo "httprequest setting up"; */
+		
 				
-			/* 	var_dump ($params); */
+			 	
 			}
+		
 			$this->_connection = new tweetConnection();
-			
+
 			$log_params = var_export($params, TRUE); 
+			
 			$log_params = str_replace(array("\r","\n"), '', $log_params); 
-				
+
 			try {
 				switch ( $method )
 				{
@@ -606,6 +620,7 @@
 			
 			if ( !empty($callback) )
 			{
+			//	$oauth['oauth_callback'] = urlencode($callback); //Request token issue added urlencode() 3/18/2015
 				$oauth['oauth_callback'] = $callback;
 			}
 			
@@ -626,15 +641,45 @@
 			
 			if ( is_array($params) )
 			{
-				array_walk($params, array($this, '_encode_rfc3986'));
+				
+				array_walk($params, array($this, '_walk_encode_rfc3986'));
+
 			}
-			/* print_r($oauth); */
+		
 			$encodedParams = array_merge($oauth, (array)$params);
 			
 			ksort($encodedParams);
 			
-			$oauth['oauth_signature'] = $this->_encode_rfc3986($this->_generateSignature($method, $url, $encodedParams));/* var_dump ($oauth); */
-			return array('request' => $params, 'oauth' => $oauth);
+			$oauth['oauth_signature'] = $this->_encode_rfc3986($this->_generateSignature($method, $url, $encodedParams));
+
+			
+			$reorder_oauth=array();
+			
+			/* REORDER OAUTH TO TRY TO BETTER GET AUTHENTICATED */
+			
+			if (isset($oauth['oauth_callback'])){
+				$reorder_oauth["oauth_callback"] = $oauth['oauth_callback'];
+			}
+			
+			$reorder_oauth["oauth_consumer_key"] =$oauth['oauth_consumer_key'] ;
+			$reorder_oauth["oauth_nonce"] =$oauth['oauth_nonce'] ;
+			$reorder_oauth["oauth_signature"] =$oauth['oauth_signature'];
+			$reorder_oauth["oauth_signature_method"] =$oauth['oauth_signature_method'] ; 
+			$reorder_oauth["oauth_timestamp"] =$oauth['oauth_timestamp'] ; 
+			$reorder_oauth["oauth_token"] =$oauth['oauth_token'] ;
+			
+			if ($url == $this->_accessTokenUrl){
+				$reorder_oauth['oauth_verifier'] 		= $oauth['oauth_verifier'];
+			}
+			$reorder_oauth["oauth_version"] =$oauth['oauth_version'];	
+			
+			if ($url == $this->_requestTokenUrl){
+			
+				$reorder_oauth['oauth_callback'] = urlencode($callback);
+			
+				}
+						
+			return array('request' => $params, 'oauth' => $reorder_oauth);
 		}
 	
 		private function _generateNonce()
@@ -642,10 +687,20 @@
 			return md5(uniqid(rand(), TRUE));
 		}
 		
+		private function _walk_encode_rfc3986(&$string, $key)
+		{
+			$search = array('#', ',', '+', ':', ' ','~','!');
+			$replace = array('%23', '%2C', '%2B', '%3A', '%20','%7E','%21');
+			$string = str_replace($search, $replace, $string); 
+       
+     
+		}
+		
 		private function _encode_rfc3986($string)
 		{
-			return str_replace('+', ' ', str_replace('%7E', '~', rawurlencode(($string))));
-		}
+			return str_replace( '%23', '#', str_replace('%20', ' ', str_replace('%7E', '~', rawurlencode(($string)))));
+			
+			}
 		
 		private function _generateSignature($method = null, $url = null, $params = null)
 		{
@@ -656,7 +711,13 @@
 			
 			foreach ($params as $k => $v)
 			{
-				$v = $this->_encode_rfc3986($v);
+			
+			if (strpos($url, 'search/tweets')  === false) 
+				{
+				   	$v = $this->_encode_rfc3986($v);
+				}
+			
+			
 				$concatenatedParams .= "{$k}={$v}&";
 			}
 			
@@ -667,12 +728,14 @@
 			$method = $this->_encode_rfc3986($method); // don't need this but why not?
 
 			$signatureBaseString = "{$method}&{$normalizedUrl}&{$concatenatedParams}";
-			//log_message('debug', 'Signature Base String: '. $signatureBaseString);
+
+			
+			;
 			return $this->_signString($signatureBaseString);
 		}
 		
 		private function _normalizeUrl($url = NULL)
-		{
+		{ 
 			$urlParts = parse_url($url);
 			
 			$scheme = strtolower($urlParts['scheme']);
@@ -706,7 +769,7 @@
 			{
 				$retval .= "?{$urlParts['query']}";
 			}
-			
+
 			return $retval;
 		}
 		
